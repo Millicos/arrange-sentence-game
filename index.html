@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Arrange the Sentence - Future Transportation</title>
 
 <style>
@@ -35,11 +36,13 @@ h1{
     display:flex;
     justify-content:center;
     align-items:center;
+    flex-wrap:wrap;
     gap:20px;
     margin-bottom:18px;
 }
 
-.question-box{
+.question-box,
+.timer-box{
     background:white;
     padding:16px 28px;
     border-radius:20px;
@@ -47,6 +50,22 @@ h1{
     font-size:28px;
     font-weight:bold;
     color:#333;
+}
+
+.timer-box{
+    color:#ff6b6b;
+    min-width:170px;
+    text-align:center;
+}
+
+.timer-box.warning{
+    background:#fff3bf;
+    color:#f08c00;
+}
+
+.timer-box.time-up{
+    background:#ffe3e3;
+    color:#c92a2a;
 }
 
 .instruction{
@@ -143,8 +162,9 @@ button:hover{
     transform:translateY(-2px);
 }
 
-.music{
-    background:#d0bfff;
+.timer-button{
+    background:#ff922b;
+    color:white;
 }
 
 .show{
@@ -176,6 +196,29 @@ button:hover{
     display:block;
 }
 
+.time-message{
+    display:none;
+    margin-bottom:18px;
+    text-align:center;
+    font-size:36px;
+    font-weight:bold;
+    color:#c92a2a;
+}
+
+.time-message.show-time-message{
+    display:block;
+}
+
+#youtubePlayer{
+    position:absolute;
+    width:1px;
+    height:1px;
+    left:-9999px;
+    top:-9999px;
+    opacity:0;
+    pointer-events:none;
+}
+
 @media(max-width:768px){
     body{
         padding:12px;
@@ -186,6 +229,7 @@ button:hover{
     }
 
     .question-box,
+    .timer-box,
     .instruction{
         font-size:20px;
     }
@@ -211,6 +255,10 @@ button:hover{
     .answer-key{
         font-size:22px;
     }
+
+    .time-message{
+        font-size:26px;
+    }
 }
 </style>
 </head>
@@ -225,6 +273,10 @@ button:hover{
     <div class="question-box">
         Question <span id="questionNum">1</span>/6
     </div>
+
+    <div class="timer-box" id="timerBox">
+        ⏱ <span id="timer">01:00</span>
+    </div>
 </div>
 
 <div class="instruction">
@@ -237,8 +289,12 @@ button:hover{
 
 <div class="answer-zone" id="answerZone"></div>
 
+<div class="time-message" id="timeMessage">
+    ⏰ Time’s up!
+</div>
+
 <div class="controls">
-    <button class="music" onclick="toggleMusic()">🎵 Start Music</button>
+    <button class="timer-button" onclick="startTimer()">Start Timer</button>
     <button class="show" onclick="showAnswer()">Show Answer</button>
     <button class="reset" onclick="resetQuestion()">Reset</button>
     <button class="next" onclick="nextQuestion()">Next Question</button>
@@ -246,17 +302,7 @@ button:hover{
 
 <div class="answer-key" id="answerKey"></div>
 
-<audio id="bgMusic" loop>
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=happy-childrens-tunes-11574.mp3" type="audio/mpeg">
-</audio>
-
-<audio id="correctSound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_63c49c13c8.mp3?filename=success-fanfare-trumpets-6185.mp3" type="audio/mpeg">
-</audio>
-
-<audio id="clickSound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5b5e6b8d8b.mp3?filename=click-button-140881.mp3" type="audio/mpeg">
-</audio>
+<div id="youtubePlayer"></div>
 
 </div>
 
@@ -291,19 +337,60 @@ const questions = [
 let currentQuestion = 0;
 let animationId = null;
 let movingWords = [];
-let isMusicPlaying = false;
+
+let timerInterval = null;
+let timeLeft = 60;
+let timerRunning = false;
+
+let youtubePlayer = null;
+let youtubeReady = false;
+let youtubeStarted = false;
 
 const wordBank = document.getElementById("wordBank");
 const answerZone = document.getElementById("answerZone");
 const answerKey = document.getElementById("answerKey");
+const timerDisplay = document.getElementById("timer");
+const timerBox = document.getElementById("timerBox");
+const timeMessage = document.getElementById("timeMessage");
 
-const bgMusic = document.getElementById("bgMusic");
-const correctSound = document.getElementById("correctSound");
-const clickSound = document.getElementById("clickSound");
+const youtubeScript = document.createElement("script");
+youtubeScript.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(youtubeScript);
 
-bgMusic.volume = 0.25;
-correctSound.volume = 0.55;
-clickSound.volume = 0.35;
+function onYouTubeIframeAPIReady(){
+    youtubePlayer = new YT.Player("youtubePlayer", {
+        videoId: "8-N2XYvO7Lg",
+        playerVars: {
+            autoplay: 0,
+            loop: 1,
+            playlist: "8-N2XYvO7Lg",
+            controls: 0,
+            modestbranding: 1
+        },
+        events: {
+            onReady: () => {
+                youtubeReady = true;
+            },
+            onStateChange: event => {
+                if(event.data === YT.PlayerState.ENDED){
+                    youtubePlayer.playVideo();
+                }
+            }
+        }
+    });
+}
+
+function startYoutubeMusic(){
+    if(youtubeStarted) return;
+    if(!youtubeReady || !youtubePlayer) return;
+
+    youtubePlayer.setVolume(35);
+    youtubePlayer.playVideo();
+    youtubeStarted = true;
+}
+
+document.addEventListener("click", startYoutubeMusic, { once:true });
+document.addEventListener("dragstart", startYoutubeMusic, { once:true });
 
 function shuffle(array){
     return array.sort(() => Math.random() - 0.5);
@@ -326,12 +413,16 @@ function loadQuestion(){
         cancelAnimationFrame(animationId);
     }
 
+    resetTimer();
+
     wordBank.querySelectorAll(".word").forEach(word => word.remove());
     answerZone.innerHTML = "";
     answerZone.classList.remove("has-word");
 
     answerKey.textContent = "";
     answerKey.classList.remove("show-answer");
+
+    timeMessage.classList.remove("show-time-message");
 
     document.getElementById("questionNum").textContent = currentQuestion + 1;
 
@@ -403,6 +494,7 @@ function animateWords(){
 
 function addDragEvents(word){
     word.addEventListener("dragstart", () => {
+        startYoutubeMusic();
         word.classList.add("dragging");
     });
 
@@ -473,41 +565,69 @@ function updateAnswerPlaceholder(){
     }
 }
 
-function playSound(sound){
-    sound.currentTime = 0;
-    sound.play().catch(() => {});
-}
+function updateTimerDisplay(){
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
 
-function toggleMusic(){
-    const musicButton = document.querySelector(".music");
+    timerDisplay.textContent =
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(seconds).padStart(2, "0");
 
-    if(isMusicPlaying){
-        bgMusic.pause();
-        musicButton.textContent = "🎵 Start Music";
-        isMusicPlaying = false;
-    }else{
-        bgMusic.play().then(() => {
-            musicButton.textContent = "🔇 Stop Music";
-            isMusicPlaying = true;
-        }).catch(() => {
-            alert("Please click again to start the music.");
-        });
+    timerBox.classList.remove("warning", "time-up");
+
+    if(timeLeft <= 0){
+        timerBox.classList.add("time-up");
+    }else if(timeLeft <= 10){
+        timerBox.classList.add("warning");
     }
 }
 
+function startTimer(){
+    startYoutubeMusic();
+
+    if(timerRunning) return;
+
+    timerRunning = true;
+    timeMessage.classList.remove("show-time-message");
+
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+
+        if(timeLeft <= 0){
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timerRunning = false;
+            timeLeft = 0;
+            updateTimerDisplay();
+            timeMessage.classList.add("show-time-message");
+        }
+    }, 1000);
+}
+
+function resetTimer(){
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerRunning = false;
+    timeLeft = 60;
+    updateTimerDisplay();
+    timeMessage.classList.remove("show-time-message");
+}
+
 function showAnswer(){
-    playSound(correctSound);
+    startYoutubeMusic();
     answerKey.textContent = questions[currentQuestion].sentence;
     answerKey.classList.add("show-answer");
 }
 
 function resetQuestion(){
-    playSound(clickSound);
+    startYoutubeMusic();
     loadQuestion();
 }
 
 function nextQuestion(){
-    playSound(clickSound);
+    startYoutubeMusic();
 
     currentQuestion++;
 
