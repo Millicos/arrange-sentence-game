@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arrange the Sentence - Future Simple</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Comic Sans MS', sans-serif;
+}
+
+body{
+    background:linear-gradient(135deg,#e8f7ff,#fff4e6);
+    min-height:100vh;
+    padding:20px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+}
+
+h1{
+    text-align:center;
+    color:#4d6cfa;
+    margin-bottom:15px;
+}
+
+.top-bar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+.score-box,
+.question-box{
+    background:white;
+    padding:12px 18px;
+    border-radius:15px;
+    box-shadow:0 3px 8px rgba(0,0,0,0.1);
+    font-weight:bold;
+}
+
+.word-bank{
+    position:relative;
+    height:260px;
+    background:#dff7ff;
+    border:4px dashed #89d8f5;
+    border-radius:25px;
+    overflow:hidden;
+    margin-bottom:20px;
+}
+
+.word-bank-title{
+    position:absolute;
+    top:8px;
+    left:12px;
+    font-size:18px;
+    font-weight:bold;
+    color:#2c7fb8;
+    z-index:100;
+}
+
+.word{
+    position:absolute;
+    padding:10px 18px;
+    border-radius:18px;
+    background:#fff;
+    border:2px solid #ffc9de;
+    cursor:grab;
+    user-select:none;
+    box-shadow:0 3px 6px rgba(0,0,0,0.15);
+    font-weight:bold;
+    white-space:nowrap;
+    touch-action:none;
+}
+
+.word.dragging{
+    opacity:0.7;
+}
+
+.answer-zone{
+    min-height:160px;
+    background:#fff;
+    border:4px dashed #ffb6c1;
+    border-radius:25px;
+    padding:20px;
+    display:flex;
+    flex-wrap:wrap;
+    align-content:flex-start;
+    gap:10px;
+    margin-bottom:20px;
+}
+
+.answer-zone::before{
+    content:"Build your sentence here...";
+    color:#999;
+    width:100%;
+}
+
+.answer-zone.has-word::before{
+    display:none;
+}
+
+.controls{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:15px;
+}
+
+button{
+    padding:12px 22px;
+    border:none;
+    border-radius:20px;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:.3s;
+}
+
+button:hover{
+    transform:translateY(-2px);
+}
+
+.check{
+    background:#8ce99a;
+}
+
+.reset{
+    background:#ffd43b;
+}
+
+.next{
+    background:#74c0fc;
+}
+
+.feedback{
+    margin-top:15px;
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+    min-height:30px;
+}
+
+.correct{
+    color:green;
+}
+
+.incorrect{
+    color:red;
+}
+
+@media(max-width:768px){
+    body{
+        padding:12px;
+    }
+
+    h1{
+        font-size:24px;
+    }
+
+    .word-bank{
+        height:220px;
+    }
+
+    .answer-zone{
+        min-height:140px;
+    }
+
+    .word{
+        font-size:14px;
+        padding:8px 14px;
+    }
+
+    button{
+        font-size:14px;
+        padding:10px 16px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>✈️ Arrange the Sentence ✈️</h1>
+
+<div class="top-bar">
+    <div class="question-box">
+        Question <span id="questionNum">1</span>/10
+    </div>
+
+    <div class="score-box">
+        ⭐ Score: <span id="score">0</span>
+    </div>
+</div>
+
+<div class="word-bank" id="wordBank">
+    <div class="word-bank-title">Word Bank</div>
+</div>
+
+<div class="answer-zone" id="answerZone"></div>
+
+<div class="controls">
+    <button class="check" onclick="checkAnswer()">Check Answer</button>
+    <button class="reset" onclick="resetQuestion()">Reset</button>
+    <button class="next" onclick="nextQuestion()">Next Question</button>
+</div>
+
+<div class="feedback" id="feedback"></div>
+
+</div>
+
+<script>
+const questions = [
+    {
+        sentence:"I will travel to Mars in the future",
+        words:["future","travel","Mars","will","to","I","the","in"]
+    },
+    {
+        sentence:"She will not travel by car",
+        words:["travel","car","will","She","not","by"]
+    },
+    {
+        sentence:"Will you visit Japan next year",
+        words:["visit","next","Will","Japan","you","year"]
+    },
+    {
+        sentence:"They will stay in a smart hotel",
+        words:["stay","smart","will","hotel","They","in","a"]
+    },
+    {
+        sentence:"We will not use paper maps",
+        words:["use","maps","paper","not","We","will"]
+    },
+    {
+        sentence:"Will people travel in flying cars",
+        words:["travel","people","cars","Will","flying","in"]
+    },
+    {
+        sentence:"My family will take a space tour",
+        words:["space","tour","family","My","take","a","will"]
+    },
+    {
+        sentence:"He will not fly to the Moon",
+        words:["fly","Moon","the","not","He","to","will"]
+    },
+    {
+        sentence:"Will tourists book hotels online",
+        words:["book","hotels","online","Will","tourists"]
+    },
+    {
+        sentence:"Students will explore new planets",
+        words:["planets","new","Students","will","explore"]
+    }
+];
+
+let currentQuestion = 0;
+let score = 0;
+let animationId = null;
+let movingWords = [];
+
+const wordBank = document.getElementById("wordBank");
+const answerZone = document.getElementById("answerZone");
+
+function shuffle(array){
+    return array.sort(() => Math.random() - 0.5);
+}
+
+function getRandomPosition(wordElement){
+    const paddingTop = 45;
+
+    const maxLeft = wordBank.clientWidth - wordElement.offsetWidth - 10;
+    const maxTop = wordBank.clientHeight - wordElement.offsetHeight - 10;
+
+    const left = Math.random() * Math.max(maxLeft, 50);
+    const top = paddingTop + Math.random() * Math.max(maxTop - paddingTop, 40);
+
+    return { left, top };
+}
+
+function loadQuestion(){
+    if(animationId){
+        cancelAnimationFrame(animationId);
+    }
+
+    wordBank.querySelectorAll(".word").forEach(word => word.remove());
+    answerZone.innerHTML = "";
+    answerZone.classList.remove("has-word");
+
+    const feedback = document.getElementById("feedback");
+    feedback.textContent = "";
+    feedback.className = "feedback";
+
+    document.getElementById("questionNum").textContent = currentQuestion + 1;
+
+    movingWords = [];
+
+    const words = shuffle([...questions[currentQuestion].words]);
+
+    words.forEach(wordText => {
+        const word = document.createElement("div");
+
+        word.className = "word";
+        word.textContent = wordText;
+        word.draggable = true;
+        word.dataset.fixed = "false";
+
+        word.dataset.vx = (Math.random() * 2 + 1) * (Math.random() < 0.5 ? -1 : 1);
+        word.dataset.vy = (Math.random() * 2 + 1) * (Math.random() < 0.5 ? -1 : 1);
+
+        addDragEvents(word);
+
+        wordBank.appendChild(word);
+
+        const position = getRandomPosition(word);
+        word.style.left = position.left + "px";
+        word.style.top = position.top + "px";
+
+        movingWords.push(word);
+    });
+
+    animateWords();
+}
+
+function animateWords(){
+    movingWords.forEach(word => {
+        if(word.dataset.fixed === "true") return;
+
+        let x = parseFloat(word.style.left);
+        let y = parseFloat(word.style.top);
+
+        let vx = parseFloat(word.dataset.vx);
+        let vy = parseFloat(word.dataset.vy);
+
+        x += vx;
+        y += vy;
+
+        const minY = 35;
+        const maxX = wordBank.clientWidth - word.offsetWidth;
+        const maxY = wordBank.clientHeight - word.offsetHeight;
+
+        if(x <= 0 || x >= maxX){
+            vx *= -1;
+            x = Math.max(0, Math.min(x, maxX));
+        }
+
+        if(y <= minY || y >= maxY){
+            vy *= -1;
+            y = Math.max(minY, Math.min(y, maxY));
+        }
+
+        word.dataset.vx = vx;
+        word.dataset.vy = vy;
+
+        word.style.left = x + "px";
+        word.style.top = y + "px";
+    });
+
+    animationId = requestAnimationFrame(animateWords);
+}
+
+function addDragEvents(word){
+    word.addEventListener("dragstart", () => {
+        word.classList.add("dragging");
+    });
+
+    word.addEventListener("dragend", () => {
+        word.classList.remove("dragging");
+    });
+}
+
+document.addEventListener("dragover", event => {
+    event.preventDefault();
+});
+
+answerZone.addEventListener("dragover", event => {
+    event.preventDefault();
+});
+
+answerZone.addEventListener("drop", event => {
+    event.preventDefault();
+
+    const dragged = document.querySelector(".dragging");
+
+    if(!dragged) return;
+
+    dragged.dataset.fixed = "true";
+
+    dragged.style.position = "relative";
+    dragged.style.left = "0";
+    dragged.style.top = "0";
+
+    answerZone.appendChild(dragged);
+    answerZone.classList.add("has-word");
+});
+
+wordBank.addEventListener("dragover", event => {
+    event.preventDefault();
+});
+
+wordBank.addEventListener("drop", event => {
+    event.preventDefault();
+
+    const dragged = document.querySelector(".dragging");
+
+    if(!dragged) return;
+
+    dragged.dataset.fixed = "false";
+
+    dragged.style.position = "absolute";
+
+    wordBank.appendChild(dragged);
+
+    const position = getRandomPosition(dragged);
+    dragged.style.left = position.left + "px";
+    dragged.style.top = position.top + "px";
+
+    if(!movingWords.includes(dragged)){
+        movingWords.push(dragged);
+    }
+
+    updateAnswerPlaceholder();
+});
+
+function updateAnswerPlaceholder(){
+    const hasWords = answerZone.querySelectorAll(".word").length > 0;
+
+    if(hasWords){
+        answerZone.classList.add("has-word");
+    }else{
+        answerZone.classList.remove("has-word");
+    }
+}
+
+function checkAnswer(){
+    const words = [...answerZone.querySelectorAll(".word")]
+        .map(word => word.textContent.trim());
+
+    const studentAnswer = words.join(" ");
+    const correctAnswer = questions[currentQuestion].sentence;
+
+    const feedback = document.getElementById("feedback");
+
+    if(studentAnswer === correctAnswer){
+        feedback.textContent = "🎉 Correct!";
+        feedback.className = "feedback correct";
+
+        if(!questions[currentQuestion].scored){
+            score++;
+            questions[currentQuestion].scored = true;
+            document.getElementById("score").textContent = score;
+        }
+    }else{
+        feedback.innerHTML = "❌ Try Again!<br><small>Correct: " + correctAnswer + "</small>";
+        feedback.className = "feedback incorrect";
+    }
+}
+
+function resetQuestion(){
+    loadQuestion();
+}
+
+function nextQuestion(){
+    currentQuestion++;
+
+    if(currentQuestion >= questions.length){
+        alert(
+            "Game Over!\n\nYour Score: " +
+            score +
+            " / " +
+            questions.length
+        );
+
+        currentQuestion = 0;
+        score = 0;
+
+        document.getElementById("score").textContent = score;
+
+        questions.forEach(question => {
+            question.scored = false;
+        });
+    }
+
+    loadQuestion();
+}
+
+window.addEventListener("resize", () => {
+    movingWords.forEach(word => {
+        if(word.dataset.fixed === "false"){
+            const position = getRandomPosition(word);
+            word.style.left = position.left + "px";
+            word.style.top = position.top + "px";
+        }
+    });
+});
+
+loadQuestion();
+</script>
+
+</body>
+</html>
