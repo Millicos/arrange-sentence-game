@@ -321,8 +321,8 @@ function loadQuestion(){
         word.draggable = true;
         word.dataset.fixed = "false";
 
-        word.dataset.vx = (Math.random() * 2 + 0.8) * (Math.random() < 0.5 ? -1 : 1);
-        word.dataset.vy = (Math.random() * 2 + 0.8) * (Math.random() < 0.5 ? -1 : 1);
+        word.dataset.vx = (Math.random() * 0.6 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
+        word.dataset.vy = (Math.random() * 0.6 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
 
         addDragEvents(word);
 
