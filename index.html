@@ -113,6 +113,7 @@ h1{
 
 .word.dragging{
     opacity:0.7;
+    z-index:999;
 }
 
 .answer-zone{
@@ -209,16 +210,6 @@ button:hover{
     display:block;
 }
 
-#youtubePlayer{
-    position:absolute;
-    width:1px;
-    height:1px;
-    left:-9999px;
-    top:-9999px;
-    opacity:0;
-    pointer-events:none;
-}
-
 @media(max-width:768px){
     body{
         padding:12px;
@@ -302,7 +293,9 @@ button:hover{
 
 <div class="answer-key" id="answerKey"></div>
 
-<div id="youtubePlayer"></div>
+<audio id="bgMusic" loop preload="auto">
+    <source src="music.mp3" type="audio/mpeg">
+</audio>
 
 </div>
 
@@ -342,9 +335,7 @@ let timerInterval = null;
 let timeLeft = 60;
 let timerRunning = false;
 
-let youtubePlayer = null;
-let youtubeReady = false;
-let youtubeStarted = false;
+let musicStarted = false;
 
 const wordBank = document.getElementById("wordBank");
 const answerZone = document.getElementById("answerZone");
@@ -352,52 +343,48 @@ const answerKey = document.getElementById("answerKey");
 const timerDisplay = document.getElementById("timer");
 const timerBox = document.getElementById("timerBox");
 const timeMessage = document.getElementById("timeMessage");
+const bgMusic = document.getElementById("bgMusic");
 
-const youtubeScript = document.createElement("script");
-youtubeScript.src = "https://www.youtube.com/iframe_api";
-document.head.appendChild(youtubeScript);
+bgMusic.volume = 0.35;
 
-function onYouTubeIframeAPIReady(){
-    youtubePlayer = new YT.Player("youtubePlayer", {
-        videoId: "8-N2XYvO7Lg",
-        playerVars: {
-            autoplay: 0,
-            loop: 1,
-            playlist: "8-N2XYvO7Lg",
-            controls: 0,
-            modestbranding: 1
-        },
-        events: {
-            onReady: () => {
-                youtubeReady = true;
-            },
-            onStateChange: event => {
-                if(event.data === YT.PlayerState.ENDED){
-                    youtubePlayer.playVideo();
-                }
-            }
-        }
-    });
+function startBackgroundMusic(){
+    if(musicStarted) return;
+
+    bgMusic.loop = true;
+
+    bgMusic.play()
+        .then(() => {
+            musicStarted = true;
+        })
+        .catch(() => {
+            console.log("Music needs user interaction to start.");
+        });
 }
-
-function startYoutubeMusic(){
-    if(youtubeStarted) return;
-    if(!youtubeReady || !youtubePlayer) return;
-
-    youtubePlayer.setVolume(35);
-    youtubePlayer.playVideo();
-    youtubeStarted = true;
-}
-
-document.addEventListener("click", startYoutubeMusic, { once:true });
-document.addEventListener("dragstart", startYoutubeMusic, { once:true });
 
 function shuffle(array){
     return array.sort(() => Math.random() - 0.5);
 }
 
+function isOverlapping(rect1, rect2, gap = 10){
+    return !(
+        rect1.right + gap < rect2.left ||
+        rect1.left > rect2.right + gap ||
+        rect1.bottom + gap < rect2.top ||
+        rect1.top > rect2.bottom + gap
+    );
+}
+
+function getWordRect(wordElement, left, top){
+    return {
+        left:left,
+        top:top,
+        right:left + wordElement.offsetWidth,
+        bottom:top + wordElement.offsetHeight
+    };
+}
+
 function getRandomPosition(wordElement){
-    const paddingTop = 55;
+    const paddingTop = 60;
 
     const maxLeft = wordBank.clientWidth - wordElement.offsetWidth - 10;
     const maxTop = wordBank.clientHeight - wordElement.offsetHeight - 10;
@@ -406,6 +393,100 @@ function getRandomPosition(wordElement){
     const top = paddingTop + Math.random() * Math.max(maxTop - paddingTop, 40);
 
     return { left, top };
+}
+
+function getNonOverlappingPosition(wordElement){
+    const maxAttempts = 120;
+
+    for(let attempt = 0; attempt < maxAttempts; attempt++){
+        const position = getRandomPosition(wordElement);
+        const newRect = getWordRect(wordElement, position.left, position.top);
+
+        let hasOverlap = false;
+
+        for(const otherWord of movingWords){
+            if(otherWord === wordElement) continue;
+            if(otherWord.dataset.fixed === "true") continue;
+
+            const otherLeft = parseFloat(otherWord.style.left);
+            const otherTop = parseFloat(otherWord.style.top);
+            const otherRect = getWordRect(otherWord, otherLeft, otherTop);
+
+            if(isOverlapping(newRect, otherRect, 16)){
+                hasOverlap = true;
+                break;
+            }
+        }
+
+        if(!hasOverlap){
+            return position;
+        }
+    }
+
+    return getRandomPosition(wordElement);
+}
+
+function separateOverlappingWords(){
+    const activeWords = movingWords.filter(word => word.dataset.fixed !== "true");
+
+    for(let i = 0; i < activeWords.length; i++){
+        for(let j = i + 1; j < activeWords.length; j++){
+            const wordA = activeWords[i];
+            const wordB = activeWords[j];
+
+            let ax = parseFloat(wordA.style.left);
+            let ay = parseFloat(wordA.style.top);
+            let bx = parseFloat(wordB.style.left);
+            let by = parseFloat(wordB.style.top);
+
+            const rectA = getWordRect(wordA, ax, ay);
+            const rectB = getWordRect(wordB, bx, by);
+
+            if(isOverlapping(rectA, rectB, 12)){
+                let avx = parseFloat(wordA.dataset.vx);
+                let avy = parseFloat(wordA.dataset.vy);
+                let bvx = parseFloat(wordB.dataset.vx);
+                let bvy = parseFloat(wordB.dataset.vy);
+
+                wordA.dataset.vx = -avx;
+                wordA.dataset.vy = -avy;
+                wordB.dataset.vx = -bvx;
+                wordB.dataset.vy = -bvy;
+
+                const centerAX = ax + wordA.offsetWidth / 2;
+                const centerAY = ay + wordA.offsetHeight / 2;
+                const centerBX = bx + wordB.offsetWidth / 2;
+                const centerBY = by + wordB.offsetHeight / 2;
+
+                let dx = centerAX - centerBX;
+                let dy = centerAY - centerBY;
+
+                if(dx === 0) dx = Math.random() < 0.5 ? -1 : 1;
+                if(dy === 0) dy = Math.random() < 0.5 ? -1 : 1;
+
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const pushX = (dx / distance) * 4;
+                const pushY = (dy / distance) * 4;
+
+                ax += pushX;
+                ay += pushY;
+                bx -= pushX;
+                by -= pushY;
+
+                const minY = 45;
+                const maxAX = wordBank.clientWidth - wordA.offsetWidth;
+                const maxAY = wordBank.clientHeight - wordA.offsetHeight;
+                const maxBX = wordBank.clientWidth - wordB.offsetWidth;
+                const maxBY = wordBank.clientHeight - wordB.offsetHeight;
+
+                wordA.style.left = Math.max(0, Math.min(ax, maxAX)) + "px";
+                wordA.style.top = Math.max(minY, Math.min(ay, maxAY)) + "px";
+
+                wordB.style.left = Math.max(0, Math.min(bx, maxBX)) + "px";
+                wordB.style.top = Math.max(minY, Math.min(by, maxBY)) + "px";
+            }
+        }
+    }
 }
 
 function loadQuestion(){
@@ -445,7 +526,7 @@ function loadQuestion(){
 
         wordBank.appendChild(word);
 
-        const position = getRandomPosition(word);
+        const position = getNonOverlappingPosition(word);
         word.style.left = position.left + "px";
         word.style.top = position.top + "px";
 
@@ -489,12 +570,14 @@ function animateWords(){
         word.style.top = y + "px";
     });
 
+    separateOverlappingWords();
+
     animationId = requestAnimationFrame(animateWords);
 }
 
 function addDragEvents(word){
     word.addEventListener("dragstart", () => {
-        startYoutubeMusic();
+        startBackgroundMusic();
         word.classList.add("dragging");
     });
 
@@ -544,7 +627,7 @@ wordBank.addEventListener("drop", event => {
 
     wordBank.appendChild(dragged);
 
-    const position = getRandomPosition(dragged);
+    const position = getNonOverlappingPosition(dragged);
     dragged.style.left = position.left + "px";
     dragged.style.top = position.top + "px";
 
@@ -584,7 +667,7 @@ function updateTimerDisplay(){
 }
 
 function startTimer(){
-    startYoutubeMusic();
+    startBackgroundMusic();
 
     if(timerRunning) return;
 
@@ -616,18 +699,18 @@ function resetTimer(){
 }
 
 function showAnswer(){
-    startYoutubeMusic();
+    startBackgroundMusic();
     answerKey.textContent = questions[currentQuestion].sentence;
     answerKey.classList.add("show-answer");
 }
 
 function resetQuestion(){
-    startYoutubeMusic();
+    startBackgroundMusic();
     loadQuestion();
 }
 
 function nextQuestion(){
-    startYoutubeMusic();
+    startBackgroundMusic();
 
     currentQuestion++;
 
@@ -641,7 +724,7 @@ function nextQuestion(){
 window.addEventListener("resize", () => {
     movingWords.forEach(word => {
         if(word.dataset.fixed === "false"){
-            const position = getRandomPosition(word);
+            const position = getNonOverlappingPosition(word);
             word.style.left = position.left + "px";
             word.style.top = position.top + "px";
         }
