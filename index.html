@@ -143,6 +143,10 @@ button:hover{
     transform:translateY(-2px);
 }
 
+.music{
+    background:#d0bfff;
+}
+
 .show{
     background:#8ce99a;
 }
@@ -234,12 +238,25 @@ button:hover{
 <div class="answer-zone" id="answerZone"></div>
 
 <div class="controls">
+    <button class="music" onclick="toggleMusic()">🎵 Start Music</button>
     <button class="show" onclick="showAnswer()">Show Answer</button>
     <button class="reset" onclick="resetQuestion()">Reset</button>
     <button class="next" onclick="nextQuestion()">Next Question</button>
 </div>
 
 <div class="answer-key" id="answerKey"></div>
+
+<audio id="bgMusic" loop>
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=happy-childrens-tunes-11574.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="correctSound">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_63c49c13c8.mp3?filename=success-fanfare-trumpets-6185.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="clickSound">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_5b5e6b8d8b.mp3?filename=click-button-140881.mp3" type="audio/mpeg">
+</audio>
 
 </div>
 
@@ -274,10 +291,19 @@ const questions = [
 let currentQuestion = 0;
 let animationId = null;
 let movingWords = [];
+let isMusicPlaying = false;
 
 const wordBank = document.getElementById("wordBank");
 const answerZone = document.getElementById("answerZone");
 const answerKey = document.getElementById("answerKey");
+
+const bgMusic = document.getElementById("bgMusic");
+const correctSound = document.getElementById("correctSound");
+const clickSound = document.getElementById("clickSound");
+
+bgMusic.volume = 0.25;
+correctSound.volume = 0.55;
+clickSound.volume = 0.35;
 
 function shuffle(array){
     return array.sort(() => Math.random() - 0.5);
@@ -321,8 +347,8 @@ function loadQuestion(){
         word.draggable = true;
         word.dataset.fixed = "false";
 
-        word.dataset.vx = (Math.random() * 0.6 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
-        word.dataset.vy = (Math.random() * 0.6 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
+        word.dataset.vx = (Math.random() * 0.35 + 0.15) * (Math.random() < 0.5 ? -1 : 1);
+        word.dataset.vy = (Math.random() * 0.35 + 0.15) * (Math.random() < 0.5 ? -1 : 1);
 
         addDragEvents(word);
 
@@ -447,16 +473,42 @@ function updateAnswerPlaceholder(){
     }
 }
 
+function playSound(sound){
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+}
+
+function toggleMusic(){
+    const musicButton = document.querySelector(".music");
+
+    if(isMusicPlaying){
+        bgMusic.pause();
+        musicButton.textContent = "🎵 Start Music";
+        isMusicPlaying = false;
+    }else{
+        bgMusic.play().then(() => {
+            musicButton.textContent = "🔇 Stop Music";
+            isMusicPlaying = true;
+        }).catch(() => {
+            alert("Please click again to start the music.");
+        });
+    }
+}
+
 function showAnswer(){
+    playSound(correctSound);
     answerKey.textContent = questions[currentQuestion].sentence;
     answerKey.classList.add("show-answer");
 }
 
 function resetQuestion(){
+    playSound(clickSound);
     loadQuestion();
 }
 
 function nextQuestion(){
+    playSound(clickSound);
+
     currentQuestion++;
 
     if(currentQuestion >= questions.length){
